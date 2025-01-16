@@ -14,6 +14,7 @@ from .lightnet import LightNetAttention
 from .linear_attn import LinearAttention
 from .multiscale_retention import MultiScaleRetention
 from .rebased import ReBasedLinearAttention
+from .sig_attn import SigmoidAttention
 from .rwkv6 import RWKV6Attention
 from .rwkv7 import RWKV7Attention
 
@@ -32,6 +33,7 @@ __all__ = [
     'LinearAttention',
     'MultiScaleRetention',
     'ReBasedLinearAttention',
+    'SigmoidAttention',
     'RWKV6Attention',
     'RWKV7Attention',
 ]

@@ -5,7 +5,7 @@ from fla.layers import (ABCAttention, Attention, BasedLinearAttention,
                         GatedLinearAttention, GatedSlotAttention,
                         HGRN2Attention, HGRNAttention, LightNetAttention,
                         LinearAttention, MultiScaleRetention,
-                        ReBasedLinearAttention, RWKV6Attention, RWKV7Attention)
+                        ReBasedLinearAttention, RWKV6Attention, RWKV7Attention, SigmoidAttention)
 from fla.models import (ABCForCausalLM, ABCModel, BitNetForCausalLM,
                         BitNetModel, DeltaNetForCausalLM, DeltaNetModel,
                         GatedDeltaNetForCausalLM, GatedDeltaNetModel,
@@ -15,7 +15,8 @@ from fla.models import (ABCForCausalLM, ABCModel, BitNetForCausalLM,
                         LinearAttentionForCausalLM, LinearAttentionModel,
                         RetNetForCausalLM, RetNetModel, RWKV6ForCausalLM,
                         RWKV6Model, RWKV7ForCausalLM, RWKV7Model,
-                        TransformerForCausalLM, TransformerModel)
+                        TransformerForCausalLM, TransformerModel,
+                        SWATModel, SWATForCausalLM)
 
 __all__ = [
     'ABCAttention',
@@ -32,6 +33,7 @@ __all__ = [
     'LinearAttention',
     'MultiScaleRetention',
     'ReBasedLinearAttention',
+    'SigmoidAttention',
     'RWKV6Attention',
     'RWKV7Attention',
     'ABCForCausalLM',
@@ -56,6 +58,8 @@ __all__ = [
     'LinearAttentionModel',
     'RetNetForCausalLM',
     'RetNetModel',
+    'SWATModel',
+    'SWATForCausalLM',
     'RWKV6ForCausalLM',
     'RWKV6Model',
     'RWKV7ForCausalLM',
