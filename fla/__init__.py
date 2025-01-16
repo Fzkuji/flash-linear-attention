@@ -4,14 +4,15 @@ from fla.layers import (ABCAttention, Attention, BasedLinearAttention,
                         BitAttention, DeltaNet, GatedLinearAttention,
                         GatedSlotAttention, HGRN2Attention, HGRNAttention,
                         LinearAttention, MultiScaleRetention,
-                        ReBasedLinearAttention)
+                        ReBasedLinearAttention, SigmoidAttention)
 from fla.models import (ABCForCausalLM, ABCModel, BitNetForCausalLM,
                         BitNetModel, DeltaNetForCausalLM, DeltaNetModel,
                         GLAForCausalLM, GLAModel, GSAForCausalLM, GSAModel,
                         HGRN2ForCausalLM, HGRN2Model, HGRNForCausalLM,
                         LinearAttentionForCausalLM, LinearAttentionModel,
                         RetNetForCausalLM, RetNetModel, RWKV6ForCausalLM,
-                        RWKV6Model, TransformerForCausalLM, TransformerModel)
+                        RWKV6Model, TransformerForCausalLM, TransformerModel,
+                        SWATModel, SWATForCausalLM)
 
 __all__ = [
     'ABCAttention',
@@ -26,6 +27,7 @@ __all__ = [
     'LinearAttention',
     'MultiScaleRetention',
     'ReBasedLinearAttention',
+    'SigmoidAttention',
     'ABCForCausalLM',
     'ABCModel',
     'BitNetForCausalLM',
@@ -52,7 +54,9 @@ __all__ = [
     'chunk_retention',
     'fused_chunk_based',
     'fused_chunk_gla',
-    'fused_chunk_retention'
+    'fused_chunk_retention',
+    'SWATModel',
+    'SWATForCausalLM',
 ]
 
 __version__ = '0.1'

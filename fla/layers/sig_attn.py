@@ -137,7 +137,7 @@ class SigmoidAttention(nn.Module):
             v = rearrange(v, '... (h d) -> ... h d', h=self.num_kv_heads)
 
         if flash_sigmoid_func is None:
-            raise ImportError("Please install Flash Attention via `pip install flash-attn --no-build-isolation` first")
+            raise ImportError("Please install Sigmoid Flash Attention via `pip install flash-attn --no-build-isolation` first")
 
         # Contains at least one padding token in the sequence
         if attention_mask is not None:

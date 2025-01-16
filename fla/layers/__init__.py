@@ -13,6 +13,7 @@ from .linear_attn import LinearAttention
 from .multiscale_retention import MultiScaleRetention
 from .rebased import ReBasedLinearAttention
 from .rwkv6 import RWKV6Attention
+from .sig_attn import SigmoidAttention
 
 __all__ = [
     'ABCAttention',
@@ -28,4 +29,5 @@ __all__ = [
     'MultiScaleRetention',
     'ReBasedLinearAttention',
     'RWKV6Attention',
+    'SigmoidAttention',
 ]
