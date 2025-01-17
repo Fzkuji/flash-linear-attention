@@ -68,7 +68,7 @@ def preprocess(
     seed: int = 42,
     output: str = 'data',
     tokenizer: str = 'fla-hub/gla-1.3B-100B',
-    num_proc: int = 64,
+    num_proc: int = 8,
     batch_size: int = 2048,
     seq_len: int = 2048,
     ctx_len: int = None,
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--output", default="data", help="Output directory")
     parser.add_argument("--tokenizer", default="fla-hub/gla-1.3B-100B", help="Tokenizer name")
-    parser.add_argument("--num_proc", type=int, default=64, help="Number of processes for parallel processing")
+    parser.add_argument("--num_proc", type=int, default=8, help="Number of processes for parallel processing")
     parser.add_argument("--batch_size", type=int, default=2048, help="Batch size for processing")
     parser.add_argument("--seq_len", type=int, default=2048, help="Total sequence length for each training sample")
     parser.add_argument("--ctx_len", type=int, default=None, help="Max contiguous length to preserve (will not be split)")
