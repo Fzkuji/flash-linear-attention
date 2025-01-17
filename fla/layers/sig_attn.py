@@ -35,9 +35,9 @@ logger = logging.get_logger(__name__)
 def get_alibi_slope(num_heads):
     x = (2 ** 8) ** (1 / num_heads)
     # 生成正值的一半 slopes
-    pos_slopes = torch.tensor([1 / x ** (i + 1) for i in range(int(num_heads / 2))])
+    pos_slopes = torch.tensor([1 / x ** (i + 1) for i in range(int(num_heads / 1.5))])
     # 生成负值的一半 slopes
-    neg_slopes = torch.tensor([1 / x ** (i + 1) for i in range(int(num_heads / 2))])
+    neg_slopes = torch.tensor([1 / x ** (i + 1) for i in range(int(num_heads / 3))])
     # 拼接正值和负值，形成对称 Tensor
     full_slopes = torch.cat([-neg_slopes, pos_slopes.flip(0)])
     return full_slopes
@@ -137,7 +137,7 @@ class SigmoidAttention(nn.Module):
             v = rearrange(v, '... (h d) -> ... h d', h=self.num_kv_heads)
 
         if flash_sigmoid_func is None:
-            raise ImportError("Please install Sigmoid Flash Attention on `https://github.com/apple/ml-sigmoid-attention.git` first")
+            raise ImportError("Please install Flash Attention via `pip install flash-attn --no-build-isolation` first")
 
         # Contains at least one padding token in the sequence
         if attention_mask is not None:
@@ -146,7 +146,7 @@ class SigmoidAttention(nn.Module):
                 q, k, v,
                 causal=True,
                 window_size=(-1, -1) if self.window_size is None else (self.window_size - 1, 0),
-                alibi_slopes=get_alibi_slope(self.num_heads).to(q.device),
+                alibi_slopes=get_alibi_slope(self.n_head).to(q.device),
             )
         elif offsets is not None:
             # 确保维度正确
@@ -158,14 +158,14 @@ class SigmoidAttention(nn.Module):
                 q, k, v,
                 causal=True,
                 window_size=(-1, -1) if self.window_size is None else (self.window_size - 1, 0),
-                alibi_slopes=get_alibi_slope(self.num_heads).to(q.device),
+                alibi_slopes=get_alibi_slope(self.n_head).to(q.device),
             )
         else:
             o = flash_sigmoid_func(
                 q, k, v,
                 causal=True,
                 window_size=(-1, -1) if self.window_size is None else (self.window_size-1, 0),
-                alibi_slopes=get_alibi_slope(self.num_heads).to(q.device),
+                alibi_slopes=get_alibi_slope(self.n_head).to(q.device),
             )
         o = o.reshape(batch_size, q_len, self.hidden_size)
         o = self.o_proj(o)
