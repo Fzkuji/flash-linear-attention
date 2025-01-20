@@ -5,6 +5,7 @@ from .attn import Attention
 from .based import BasedLinearAttention
 from .bitattn import BitAttention
 from .delta_net import DeltaNet
+from .gated_deltanet import GatedDeltaNet
 from .gla import GatedLinearAttention
 from .gsa import GatedSlotAttention
 from .hgrn import HGRNAttention
@@ -13,6 +14,7 @@ from .linear_attn import LinearAttention
 from .multiscale_retention import MultiScaleRetention
 from .rebased import ReBasedLinearAttention
 from .rwkv6 import RWKV6Attention
+from .rwkv7 import RWKV7Attention
 from .sig_attn import SigmoidAttention
 
 __all__ = [
@@ -21,6 +23,7 @@ __all__ = [
     'BasedLinearAttention',
     'BitAttention',
     'DeltaNet',
+    'GatedDeltaNet',
     'GatedLinearAttention',
     'GatedSlotAttention',
     'HGRNAttention',
@@ -30,4 +33,5 @@ __all__ = [
     'ReBasedLinearAttention',
     'RWKV6Attention',
     'SigmoidAttention',
+    'RWKV7Attention',
 ]

@@ -143,6 +143,7 @@ class RWKV6Attention(nn.Module):
         u = self.bonus
 
         recurrent_state = last_state['recurrent_state'] if last_state is not None else None
+        cu_seqlens = kwargs.get('cu_seqlens', None)
         if mode == 'fused_recurrent':
             o, recurrent_state = fused_recurrent_rwkv6(
                 r=r,
@@ -153,6 +154,7 @@ class RWKV6Attention(nn.Module):
                 scale=1.,
                 initial_state=recurrent_state,
                 output_final_state=use_cache,
+                cu_seqlens=cu_seqlens,
                 head_first=False
             )
         elif mode == 'chunk':
@@ -165,6 +167,7 @@ class RWKV6Attention(nn.Module):
                 scale=1.,
                 initial_state=recurrent_state,
                 output_final_state=use_cache,
+                cu_seqlens=cu_seqlens,
                 head_first=False
             )
         else:
@@ -191,7 +194,8 @@ class LoRA(nn.Module):
         input_dim: int,
         output_dim: int,
         low_rank_dim: int,
-        bias: Optional[bool] = True
+        bias: Optional[bool] = True,
+        activation: Optional[str] = 'tanh'
     ):
         super().__init__()
 
@@ -200,9 +204,20 @@ class LoRA(nn.Module):
         self.low_rank_dim = low_rank_dim
         self.bias = bias
 
+        if activation is None:
+            self.activation = nn.Identity()
+        elif activation == 'sigmoid':
+            self.activation = nn.Sigmoid()
+        elif activation == 'tanh':
+            self.activation = nn.Tanh()
+        elif activation == 'relu':
+            self.activation = nn.ReLU()
+        else:
+            raise ValueError(f"Not supported activation `{activation}`.")
+
         self.lora = nn.Sequential(
             nn.Linear(input_dim, low_rank_dim, bias=False),
-            nn.Tanh(),
+            self.activation,
             nn.Linear(low_rank_dim, output_dim, bias=bias)
         )
 
