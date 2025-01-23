@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Optional, Tuple
 
 import torch
@@ -62,10 +63,10 @@ class RWKV7Attention(nn.Module):
 
         self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
 
-        self.x_x = nn.Parameter(torch.empty(6, self.key_dim))
+        self.x_x = nn.Parameter(torch.empty(6, hidden_size))
 
-        self.k_k = nn.Parameter(torch.empty(1, 1, self.key_dim))
-        self.k_a = nn.Parameter(torch.empty(1, 1, self.key_dim))
+        self.k_k = nn.Parameter(torch.empty(self.key_dim))
+        self.k_a = nn.Parameter(torch.empty(self.key_dim))
         self.r_k = nn.Parameter(torch.empty(self.num_heads, self.head_dim))
 
         self.r_proj = nn.Linear(hidden_size, self.key_dim, bias=False)
@@ -74,11 +75,18 @@ class RWKV7Attention(nn.Module):
         self.o_proj = nn.Linear(hidden_size, self.value_dim, bias=False)
 
         self.w_lora = LoRA(hidden_size, self.key_dim, low_rank_dim=decay_low_rank_dim, activation='tanh')
-        self.v_lora = LoRA(hidden_size, self.value_dim, low_rank_dim=v_low_rank_dim, activation=None)
+        if self.layer_idx != 0:
+            self.v_lora = LoRA(hidden_size, self.value_dim, low_rank_dim=v_low_rank_dim, activation=None)
         self.a_lora = LoRA(hidden_size, self.key_dim, low_rank_dim=a_low_rank_dim, activation=None)
-        self.g_lora = LoRA(hidden_size, self.value_dim, low_rank_dim=gate_low_rank_dim, activation='sigmoid')
+        self.g_lora = LoRA(hidden_size, self.value_dim, low_rank_dim=gate_low_rank_dim, activation='sigmoid', bias=False)
 
-        self.g_norm = GroupNorm(self.num_heads, self.value_dim, elementwise_affine=elementwise_affine, bias=True, eps=norm_eps)
+        self.g_norm = GroupNorm(
+            num_groups=self.num_heads,
+            hidden_size=self.value_dim,
+            elementwise_affine=elementwise_affine,
+            bias=True,
+            eps=self.head_dim*norm_eps
+        )
 
         self.apply(self._initialize_weights)
 
@@ -100,6 +108,7 @@ class RWKV7Attention(nn.Module):
         past_key_values: Optional[Cache] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
+        v_first: torch.Tensor = None,
         **kwargs
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[Cache]]:
         if attention_mask is not None:
@@ -128,23 +137,23 @@ class RWKV7Attention(nn.Module):
 
         # [batch_size, seq_len, hidden_size]
         delta = shifted - hidden_states
-        r, w, k, v, a, g = (hidden_states + einsum(delta, self.x_x, 'b t d, n d -> n b t d')).unbind(0)
+        xr, xw, xk, xv, xa, xg = (hidden_states + einsum(delta, self.x_x, 'b t d, n d -> n b t d')).unbind(0)
 
-        r = self.r_proj(r)
-        w = -F.softplus(-self.w_lora(w)) - 0.5
-        k = self.k_proj(k)
-        v = self.v_proj(v)
+        r = self.r_proj(xr)
+        w = -math.exp(-0.5) * self.w_lora(xw).sigmoid()
+        k = self.k_proj(xk)
+        v = self.v_proj(xv)
 
         # dealing with left-padding
         if attention_mask is not None:
             v = v.mul_(attention_mask[:, -v.shape[-2]:, None])
 
-        if 'v_state' not in kwargs:
-            kwargs['v_state'] = v
+        if self.layer_idx == 0:
+            v_first.copy_(v)
         else:
-            v = torch.lerp(v, kwargs['v_state'], self.v_lora(v).sigmoid())
-        a = self.a_lora(a).sigmoid()
-        g = self.g_lora(r)
+            v = torch.lerp(v, v_first, self.v_lora(xv).sigmoid())
+        a = self.a_lora(xa).sigmoid()
+        g = self.g_lora(xg)
 
         kk = k * self.k_k
         kk = F.normalize(kk.view(batch_size, seq_len, self.num_heads, -1), dim=-1, p=2.0).view(batch_size, seq_len, -1)
@@ -175,7 +184,7 @@ class RWKV7Attention(nn.Module):
                 recurrent_state=recurrent_state,
                 conv_state=hidden_states[:, -1],
                 layer_idx=self.layer_idx,
-                offset=r.shape[2]
+                offset=r.shape[1]
             )
 
         o = self.g_norm(rearrange(o, '... h d -> ... (h d)'))

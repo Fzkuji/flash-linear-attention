@@ -1,11 +1,13 @@
-
 # -*- coding: utf-8 -*-
-# Copyright (c) 2024-2025, Songlin Yang, Yu Zhang
+# Copyright (c) 2023-2025, Songlin Yang, Yu Zhang
+
+from typing import Optional, Tuple
 
 import torch
 import triton
 import triton.language as tl
-from typing import Optional, Tuple
+
+from fla.ops.common.utils import prepare_chunk_offsets
 
 
 @triton.heuristics({
@@ -15,10 +17,11 @@ from typing import Optional, Tuple
 })
 @triton.autotune(
     configs=[
-        triton.Config({}, num_warps=num_warps)
-        for num_warps in [2, 4, 8]
+        triton.Config({}, num_warps=num_warps, num_stages=num_stages)
+        for num_warps in [1, 2, 4, 8]
+        for num_stages in [2, 3, 4]
     ],
-    key=['BT', 'BK', 'BV'],
+    key=['BT', 'BK', 'BV']
 )
 @triton.jit
 def chunk_dplr_fwd_kernel_h(
@@ -33,7 +36,7 @@ def chunk_dplr_fwd_kernel_h(
     h0,
     ht,
     offsets,
-    c_offsets,
+    chunk_offsets,
     T: tl.constexpr,
     H: tl.constexpr,
     K: tl.constexpr,
@@ -54,7 +57,7 @@ def chunk_dplr_fwd_kernel_h(
         bos, eos = tl.load(offsets + i_n).to(tl.int32), tl.load(offsets + i_n + 1).to(tl.int32)
         T = eos - bos
         NT = tl.cdiv(T, BT)
-        boh = tl.load(c_offsets + i_n).to(tl.int32)
+        boh = tl.load(chunk_offsets + i_n).to(tl.int32)
     else:
         bos, eos = i_n * T, i_n * T + T
         NT = tl.cdiv(T, BT)
@@ -73,7 +76,7 @@ def chunk_dplr_fwd_kernel_h(
             p_h = tl.make_block_ptr(h + ((boh + i_t) * H + i_h) * K*V, (K, V), (V, 1), (i_k * BK, i_v * BV), (BK, BV), (1, 0))
         tl.store(p_h, b_h.to(p_h.dtype.element_ty), boundary_check=(0, 1))
         b_hc = tl.zeros([BK, BV], dtype=tl.float32)
-        
+
         # since we need to make all DK in the SRAM. we face serve SRAM memory burden. By subchunking we allievate such burden
         for i_c in range(tl.cdiv(min(BT, T - i_t * BT), BC)):
             if HEAD_FIRST:
@@ -99,7 +102,7 @@ def chunk_dplr_fwd_kernel_h(
             b_hc += tl.dot(b_kg, b_v)
             b_hc += tl.dot(b_bg, b_v2.to(b_bg.dtype))
             tl.store(p_v_new, b_v2.to(p_v_new.dtype.element_ty), boundary_check=(0, 1))
-        
+
         last_idx = min((i_t + 1) * BT, T) - 1
         if HEAD_FIRST:
             b_g_last = tl.load(gk + i_nh * T * K + last_idx * K + tl.arange(0, BK), mask=tl.arange(0, BK) < K)
@@ -123,7 +126,6 @@ def chunk_dplr_fwd_h(
     initial_state: Optional[torch.Tensor] = None,
     output_final_state: bool = False,
     offsets: Optional[torch.LongTensor] = None,
-    c_offsets: Optional[torch.Tensor] = None,
     head_first: bool = True,
     chunk_size: int = 64
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -134,12 +136,11 @@ def chunk_dplr_fwd_h(
     BT = min(chunk_size, max(triton.next_power_of_2(T), 16))
     # N: the actual number of sequences in the batch with either equal or variable lengths
     if offsets is None:
-        N, NT, c_offsets = B, triton.cdiv(T, BT), None
+        N, NT, chunk_offsets = B, triton.cdiv(T, BT), None
     else:
         N = len(offsets) - 1
-        if c_offsets is None:
-            c_offsets = torch.cat([offsets.new_tensor([0]), triton.cdiv(offsets[1:] - offsets[:-1], BT)]).cumsum(-1)
-        NT = c_offsets[-1]
+        chunk_offsets = prepare_chunk_offsets(offsets, BT)
+        NT = chunk_offsets[-1]
     BK = triton.next_power_of_2(K)
     assert BK <= 256, "current kernel does not support head dimension larger than 256."
     # H100 can have larger block size
@@ -163,7 +164,7 @@ def chunk_dplr_fwd_h(
     grid = (NK, NV, N * H)
     chunk_dplr_fwd_kernel_h[grid](
         kg=kg,
-        v=v, 
+        v=v,
         w=w,
         bg=bg,
         u=u,
@@ -173,7 +174,7 @@ def chunk_dplr_fwd_h(
         h0=initial_state,
         ht=final_state,
         offsets=offsets,
-        c_offsets=c_offsets,
+        chunk_offsets=chunk_offsets,
         T=T,
         H=H,
         K=K,
