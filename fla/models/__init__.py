@@ -42,6 +42,6 @@ __all__ = [
     'RWKV6Config', 'RWKV6ForCausalLM', 'RWKV6Model',
     'RWKV7Config', 'RWKV7ForCausalLM', 'RWKV7Model',
     'SambaConfig', 'SambaForCausalLM', 'SambaModel',
-    'TransformerConfig', 'TransformerForCausalLM', 'TransformerModel'
+    'TransformerConfig', 'TransformerForCausalLM', 'TransformerModel',
     'SWATConfig', 'SWATModel', 'SWATForCausalLM',
 ]
